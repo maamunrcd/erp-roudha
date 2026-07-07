@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, HEAVY_TX_OPTIONS } from "@/lib/prisma";
 import { generateTrackingId } from "@/lib/services/customer-id.service";
 import { logAudit } from "@/lib/services/audit.service";
 import { addShareObligationsToLedger, bootstrapLedger, parsePricingPhases } from "@/lib/services/ledger.service";
@@ -300,7 +300,7 @@ export async function enrollCustomer(input: EnrollCustomerInput) {
           }
         : null,
     };
-  });
+  }, HEAVY_TX_OPTIONS);
 }
 
 export async function syncShareCount(tx: Prisma.TransactionClient, customerId: string) {

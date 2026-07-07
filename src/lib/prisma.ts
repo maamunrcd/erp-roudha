@@ -9,3 +9,9 @@ export const prisma =
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+/** Neon/serverless: enrollment creates many ledger rows in one transaction. */
+export const HEAVY_TX_OPTIONS = {
+  maxWait: 10_000,
+  timeout: 60_000,
+};

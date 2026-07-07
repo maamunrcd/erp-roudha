@@ -61,20 +61,20 @@ export async function addShareObligationsToLedger(
     return;
   }
 
-  for (let i = 1; i <= installmentMonths; i++) {
-    await tx.paymentLedger.create({
-      data: {
-        customerId,
-        purpose: PaymentPurpose.INSTALLMENT,
-        installmentIndex: i,
-        amountDue: monthlyAdd,
-        amountPaid: 0,
-        status: PaymentStatus.PENDING,
-        graceStatus: GraceStatus.NONE,
-        dueDate: addMonths(contractStartDate, i),
-      },
-    });
-  }
+  if (installmentMonths <= 0) return;
+
+  await tx.paymentLedger.createMany({
+    data: Array.from({ length: installmentMonths }, (_, index) => ({
+      customerId,
+      purpose: PaymentPurpose.INSTALLMENT,
+      installmentIndex: index + 1,
+      amountDue: monthlyAdd,
+      amountPaid: 0,
+      status: PaymentStatus.PENDING,
+      graceStatus: GraceStatus.NONE,
+      dueDate: addMonths(contractStartDate, index + 1),
+    })),
+  });
 }
 
 export async function bootstrapLedger(
@@ -97,20 +97,20 @@ export async function bootstrapLedger(
     },
   });
 
-  for (let i = 1; i <= installmentMonths; i++) {
-    await tx.paymentLedger.create({
-      data: {
-        customerId,
-        purpose: PaymentPurpose.INSTALLMENT,
-        installmentIndex: i,
-        amountDue: monthlyTotal,
-        amountPaid: 0,
-        status: PaymentStatus.PENDING,
-        graceStatus: GraceStatus.NONE,
-        dueDate: addMonths(contractStartDate, i),
-      },
-    });
-  }
+  if (installmentMonths <= 0 || monthlyTotal <= 0) return;
+
+  await tx.paymentLedger.createMany({
+    data: Array.from({ length: installmentMonths }, (_, index) => ({
+      customerId,
+      purpose: PaymentPurpose.INSTALLMENT,
+      installmentIndex: index + 1,
+      amountDue: monthlyTotal,
+      amountPaid: 0,
+      status: PaymentStatus.PENDING,
+      graceStatus: GraceStatus.NONE,
+      dueDate: addMonths(contractStartDate, index + 1),
+    })),
+  });
 }
 
 export async function markOverdueLedgers() {

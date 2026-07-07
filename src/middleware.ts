@@ -72,6 +72,8 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({
     req,
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    // HTTPS (Vercel): NextAuth uses __Secure-authjs.session-token, not authjs.session-token
+    secureCookie: req.nextUrl.protocol === "https:",
   });
   const role = typeof token?.role === "string" ? token.role : undefined;
 

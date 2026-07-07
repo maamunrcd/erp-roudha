@@ -1,0 +1,13 @@
+---
+description: Quality gates for reliability-critical changes
+globs: src/**/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# Quality Gates
+
+- For auth, API, or routing changes, require at least one verification step (manual reproduction note).
+- Do not bypass lint or type issues introduced by new changes.
+- Prefer minimal, targeted diffs over broad refactors.
+- Keep naming consistent with existing module and domain terms.
+- If legacy inconsistencies exist (for example, `calender`), avoid widening inconsistency in new code.

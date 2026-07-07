@@ -1,0 +1,13 @@
+---
+description: Core safety and architecture guardrails for vcon-ui
+alwaysApply: true
+---
+
+# Core Safety (vcon-ui)
+
+- Never commit secrets or populated `.env*` values (Auth0, Firebase, Sentry, API keys, tokens).
+- Never hardcode production URLs, credentials, tokens, or DSNs in app code.
+- Keep API calls out of UI components; use `src/app/common/api-services/`.
+- Add or modify endpoints via `src/app/config/api-config/appUrls.ts` and base config in `src/app/config/environments/environment.ts`.
+- Do not create duplicate files like `* 2.tsx`; update existing modules.
+- Preserve existing behavior unless explicitly requested (auth flow, routing, token refresh).

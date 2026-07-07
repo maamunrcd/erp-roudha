@@ -1,0 +1,12 @@
+---
+description: CI and linting reliability rules
+alwaysApply: true
+---
+
+# CI and Linting Reliability
+
+- Do not disable linting in CI for normal changes; avoid patterns like `DISABLE_ESLINT_PLUGIN=true`.
+- Keep quality checks explicit: run lint and type-check for changed areas before merge.
+- If a temporary bypass is unavoidable, document reason, scope, and rollback plan in the PR.
+- Treat warnings in modified files as actionable and resolve them when practical.
+- Do not merge changes that introduce new type errors.

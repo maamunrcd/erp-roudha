@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0d0d0d;
+  --foreground: #e7ece9;
+  --surface: #141414;
+  --surface-alt: #1a1a1a;
+  --emerald: #10b981;
+  --emerald-dark: #064e3b;
+  --emerald-light: #34d399;
+  --gold: #d97706;
+  --gold-light: #f59e0b;
+  --gold-dark: #b45309;
+  --card-border: rgba(16, 185, 129, 0.14);
+  --gold-border: rgba(217, 119, 6, 0.22);
+  --muted-text: #a3aea8;
+  --input-bg: #1a1a1a;
+  --nav-bg: rgba(13, 13, 13, 0.92);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-emerald: var(--emerald);
+  --color-emerald-dark: var(--emerald-dark);
+  --color-emerald-light: var(--emerald-light);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dark: var(--gold-dark);
+  --color-card-border: var(--card-border);
+  --color-gold-border: var(--gold-border);
+  --color-muted-text: var(--muted-text);
+  --color-input-bg: var(--input-bg);
+  --color-nav-bg: var(--nav-bg);
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-bengali: var(--font-hind-siliguri), system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.font-bengali {
+  font-family: var(--font-bengali);
+}

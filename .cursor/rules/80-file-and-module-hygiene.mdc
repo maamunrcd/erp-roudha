@@ -1,0 +1,13 @@
+---
+description: File naming and module hygiene conventions
+globs: src/**/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# File and Module Hygiene
+
+- Use `.ts` for non-UI modules (config, API services, utilities, Redux logic) and `.tsx` only when JSX is present.
+- Avoid duplicate or suffixed clones such as `file 2.tsx`; refactor the original module instead.
+- Keep one primary responsibility per file; split large mixed-concern modules into focused units.
+- Standardize naming in new code (`calendar` over misspelled variants) while preserving existing API contracts.
+- Prefer explicit exports for shared modules to keep dependencies clear and tree-shake friendly.

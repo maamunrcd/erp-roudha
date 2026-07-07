@@ -1,0 +1,483 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  MANAGER
+  AUDITOR
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  COMPLETED
+}
+
+enum CustomerStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  PAUSED
+  SHARE_TO_SELL
+  TRANSFERRED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum PaymentPurpose {
+  DOWNPAYMENT
+  INSTALLMENT
+  UTILITIES
+  SAND_FILLING
+  DOCUMENT_VERIFICATION
+  MISCELLANEOUS
+  FULL_SETTLEMENT
+}
+
+enum PaymentPlan {
+  INSTALLMENT
+  FULL_UPFRONT
+}
+
+enum SettlementStatus {
+  NONE
+  FULLY_SETTLED
+  EARLY_SETTLED
+}
+
+enum SettlementType {
+  FULL_AT_ENROLLMENT
+  EARLY_PAYOFF
+  FULL_UPFRONT
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  MOBILE_BANKING
+}
+
+enum ShareAllocationStatus {
+  AVAILABLE
+  RESERVED
+  ALLOCATED
+  TRANSFERRED
+}
+
+enum GraceStatus {
+  NONE
+  PAUSED
+  RECALCULATED
+}
+
+enum PricingMode {
+  STANDARD
+  CUSTOM
+  MIXED_PHASE
+}
+
+enum PricingSource {
+  PHASE_DEFAULT
+  TWIN_COMBO
+  CUSTOM_OVERRIDE
+  MANUAL_ADJUSTMENT
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ExpenseCategory {
+  PRE_OPERATIONAL_LEGAL
+  OFFICE_OPERATIONS
+  BRANDING_MARKETING
+  HR_CONSULTANCY
+}
+
+enum ApprovingPartner {
+  ADMIN
+  MANIK
+}
+
+enum ReceiptStatus {
+  ACTIVE
+  VOIDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(MANAGER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs            AuditLog[]
+  settlementsPerformed   PaymentSettlement[] @relation("SettledBy")
+  contractAdjustments  ContractAdjustmentLog[]
+  customerNotes        CustomerNote[]
+  expensesRecorded     CompanyExpense[]
+}
+
+model VendorCompany {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  nameBn        String?
+  contactPerson String?
+  phone         String?
+  address       String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  projects Project[]
+}
+
+model Project {
+  id                String        @id @default(cuid())
+  prefix            String        @unique
+  name              String
+  nameBn            String?
+  status            ProjectStatus @default(PLANNING)
+  installmentMonths Int           @default(48)
+  totalShares       Int           @default(72)
+  publicShares      Int           @default(60)
+  dimensions        String        @default("{}")
+  layouts           String        @default("{}")
+  pricingPhases     String        @default("[]")
+  vendorCompanyId   String?
+  landBuyPrice      Float?
+  targetSellPrice   Float?
+  companyPaidAmount Float         @default(0)
+  dealStartDate     DateTime?
+  dealEndDate       DateTime?
+  acquisitionNotes  String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  vendorCompany   VendorCompany? @relation(fields: [vendorCompanyId], references: [id])
+  shares          Share[]
+  customers       Customer[]
+  documents       Document[]
+  serialCounters  ProjectSerialCounter[]
+  expenses        CompanyExpense[]
+}
+
+model ProjectSerialCounter {
+  id         String  @id @default(cuid())
+  projectId  String
+  year       Int
+  lastSerial Int     @default(0)
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, year])
+}
+
+model Share {
+  id               String                @id @default(cuid())
+  projectId        String
+  shareNumber      Int
+  allocationStatus ShareAllocationStatus @default(AVAILABLE)
+  activeCustomerId String?
+  reservedUntil    DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  activeCustomer Customer?       @relation("ActiveShareHolder", fields: [activeCustomerId], references: [id])
+  allocations    CustomerShare[]
+  transferLogs   ShareTransferLog[]
+
+  @@unique([projectId, shareNumber])
+}
+
+model CustomerProfile {
+  id                 String   @id @default(cuid())
+  fullName           String
+  phone              String   @unique
+  email              String?
+  nid                String?
+  address            String?
+  passwordHash            String?
+  portalTemporaryPassword String?
+  mustChangePassword      Boolean  @default(false)
+  passwordChangedAt       DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  enrollments       Customer[]
+  portalResetTokens PortalPasswordReset[]
+}
+
+model PortalPasswordReset {
+  id         String   @id @default(cuid())
+  profileId  String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  profile CustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, expiresAt])
+}
+
+model Customer {
+  id                 String             @id @default(cuid())
+  trackingId         String             @unique
+  profileId          String?
+  projectId          String
+  status             CustomerStatus     @default(ACTIVE)
+  shareCount         Int                @default(0)
+  fullName           String
+  phone              String
+  email              String?
+  nid                String?
+  address            String?
+  predecessorId      String?
+  paymentPlan        PaymentPlan        @default(INSTALLMENT)
+  settlementStatus   SettlementStatus   @default(NONE)
+  graceStatus        GraceStatus        @default(NONE)
+  isPaused           Boolean            @default(false)
+  verificationStatus VerificationStatus @default(PENDING)
+  contractStartDate  DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  project        Project              @relation(fields: [projectId], references: [id])
+  profile        CustomerProfile?     @relation(fields: [profileId], references: [id])
+  predecessor    Customer?            @relation("CustomerSuccessor", fields: [predecessorId], references: [id])
+  successors     Customer[]           @relation("CustomerSuccessor")
+  contract       CustomerContract?
+  shareAllocations CustomerShare[]
+  paymentLedgers PaymentLedger[]
+  settlements    PaymentSettlement[]
+  receipts       MoneyReceipt[]
+  documents      Document[]
+  notes          CustomerNote[]
+  activeShares   Share[]              @relation("ActiveShareHolder")
+  transfersFrom  ShareTransferLog[]   @relation("TransferFrom")
+  transfersTo    ShareTransferLog[]   @relation("TransferTo")
+}
+
+model CustomerContract {
+  id                      String      @id @default(cuid())
+  customerId              String      @unique
+  pricingMode             PricingMode @default(STANDARD)
+  useComboOffer           Boolean     @default(false)
+  customTotalPrice        Float?
+  customDownpayment       Float?
+  customMonthlyAmount     Float?
+  customInstallmentMonths Int?
+  discountAmount          Float?
+  discountReason          String?
+  approvedByUserId        String
+  approvedAt              DateTime    @default(now())
+  contractStartDate       DateTime    @default(now())
+  effectiveFrom           DateTime    @default(now())
+  notes                   String?
+
+  customer    Customer                  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  adjustments ContractAdjustmentLog[]
+  shareAllocations CustomerShare[]
+}
+
+model ContractAdjustmentLog {
+  id               String   @id @default(cuid())
+  contractId       String
+  adjustedByUserId String
+  reason           String
+  fieldChanged     String
+  oldValue         String
+  newValue         String
+  adjustedAt       DateTime @default(now())
+
+  contract   CustomerContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  adjustedBy User             @relation(fields: [adjustedByUserId], references: [id])
+}
+
+model CustomerShare {
+  id                 String        @id @default(cuid())
+  customerId         String
+  shareId            String
+  allocatedAt        DateTime      @default(now())
+  isActive           Boolean       @default(true)
+  unitPrice          Float
+  downpaymentPortion Float
+  monthlyInstallment Float
+  pricingSource      PricingSource @default(PHASE_DEFAULT)
+  phaseId            Int?
+  contractId         String?
+
+  customer Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  share    Share             @relation(fields: [shareId], references: [id], onDelete: Cascade)
+  contract CustomerContract? @relation(fields: [contractId], references: [id])
+
+  @@index([shareId, isActive])
+}
+
+model PaymentLedger {
+  id               String         @id @default(cuid())
+  customerId       String
+  purpose          PaymentPurpose
+  installmentIndex Int?
+  description      String?
+  amountDue        Float
+  amountPaid       Float          @default(0)
+  status           PaymentStatus  @default(PENDING)
+  paymentMethod    PaymentMethod?
+  dueDate          DateTime?
+  paidAt           DateTime?
+  isFrozen         Boolean        @default(false)
+  graceStatus      GraceStatus    @default(NONE)
+  receiptId        String?
+  settlementId     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  customer   Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  receipt    MoneyReceipt?      @relation(fields: [receiptId], references: [id])
+  settlement PaymentSettlement? @relation(fields: [settlementId], references: [id])
+  documents  Document[]
+
+  @@unique([customerId, purpose, installmentIndex])
+}
+
+model PaymentSettlement {
+  id                  String         @id @default(cuid())
+  customerId          String
+  settlementType      SettlementType
+  totalAmountPaid     Float
+  paymentMethod       PaymentMethod
+  includeOptionalFees Boolean        @default(false)
+  adminNote           String?
+  settledAt           DateTime       @default(now())
+  settledByUserId     String
+  receiptId           String?        @unique
+
+  customer    Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  settledBy   User            @relation("SettledBy", fields: [settledByUserId], references: [id])
+  receipt     MoneyReceipt?   @relation(fields: [receiptId], references: [id])
+  ledgerRows  PaymentLedger[]
+}
+
+model ReceiptCounter {
+  id         String @id @default("global")
+  lastSerial Int    @default(0)
+}
+
+model MoneyReceipt {
+  id               String         @id @default(cuid())
+  receiptSlNo      Int            @unique
+  customerId       String
+  purpose          PaymentPurpose
+  installmentIndex Int?
+  amount           Float
+  paymentMethod    PaymentMethod
+  status           ReceiptStatus  @default(ACTIVE)
+  signatureAnchor  String
+  pdfUrl           String?
+  fileHash         String?
+  issuedAt         DateTime       @default(now())
+  voidedAt         DateTime?
+  voidReason       String?
+
+  customer        Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  ledgerEntries   PaymentLedger[]
+  settlement      PaymentSettlement?
+}
+
+model ShareTransferLog {
+  id                   String   @id @default(cuid())
+  fromCustomerId       String
+  toCustomerId         String
+  shareId              String
+  cutoffInstallment    Int
+  transferDate         DateTime @default(now())
+  digitalLogSignature  String
+
+  fromCustomer Customer   @relation("TransferFrom", fields: [fromCustomerId], references: [id])
+  toCustomer   Customer   @relation("TransferTo", fields: [toCustomerId], references: [id])
+  share        Share      @relation(fields: [shareId], references: [id])
+  documents    Document[]
+}
+
+model Document {
+  id              String   @id @default(cuid())
+  fileUrl         String
+  sha256Hash      String
+  isSoftLocked    Boolean  @default(false)
+  isPublic        Boolean  @default(false)
+  label           String?
+  mimeType        String?
+  fileSize        Int?
+  projectId       String?
+  customerId      String?
+  transferLogId   String?
+  paymentLedgerId String?
+  createdAt       DateTime @default(now())
+
+  project       Project?          @relation(fields: [projectId], references: [id])
+  customer      Customer?         @relation(fields: [customerId], references: [id])
+  transferLog   ShareTransferLog? @relation(fields: [transferLogId], references: [id])
+  paymentLedger PaymentLedger?    @relation(fields: [paymentLedgerId], references: [id])
+}
+
+model CustomerNote {
+  id         String   @id @default(cuid())
+  customerId String
+  body       String
+  authorId   String
+  createdAt  DateTime @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  entityType String
+  entityId   String
+  userId     String
+  payload    String   @default("{}")
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CompanyExpense {
+  id               String           @id @default(cuid())
+  voucherNo        String           @unique
+  category         ExpenseCategory
+  description      String?
+  amount           Float
+  expenseDate      DateTime
+  isProjectExpense Boolean          @default(false)
+  projectId        String?
+  approvedBy       ApprovingPartner
+  recordedByUserId String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  project    Project? @relation(fields: [projectId], references: [id])
+  recordedBy User     @relation(fields: [recordedByUserId], references: [id])
+
+  @@index([expenseDate])
+  @@index([category])
+  @@index([isProjectExpense])
+}

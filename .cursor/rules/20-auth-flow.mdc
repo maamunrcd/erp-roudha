@@ -1,0 +1,13 @@
+---
+description: Auth and token lifecycle consistency
+globs: src/app/config/auth/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Auth Rules
+
+- Keep JWT parse and user-shape logic in a single source (`useJwtToken` or a shared util).
+- Reuse `useRefreshToken` and shared token checks; do not introduce parallel refresh flows.
+- Avoid ad-hoc redirects; use existing routing and auth flow patterns.
+- Do not add direct cookie mutations outside established auth utilities unless necessary.
+- When changing auth behavior, include failure-path handling (expired, invalid, or missing token).

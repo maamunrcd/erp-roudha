@@ -1,0 +1,60 @@
+# Global Engineering Baseline
+
+Use this as the default behavior for all tasks unless a project-specific rule overrides it.
+
+## Core Principles
+- Write production-grade code.
+- Prefer simplicity over overengineering.
+- Prefer readability over cleverness.
+- Keep code modular, predictable, and maintainable.
+- Keep files small and focused.
+- Avoid unnecessary dependencies.
+- Use strict typing where applicable.
+- Avoid duplicate logic and unnecessary abstractions.
+- Keep naming consistent and self-documenting.
+- Add comments only for non-obvious "why".
+
+## Architecture and Design
+- Choose scalable architecture and folder structure based on project context.
+- Use feature-based structure when appropriate.
+- Separate business logic from UI and transport layers.
+- Follow clean architecture and SOLID principles pragmatically.
+- Keep public contracts stable unless explicitly changing them.
+
+## Implementation Workflow
+Before major implementation:
+1. Analyze requirements and constraints.
+2. Identify architecture, performance, and security concerns.
+3. Define a minimal, scalable implementation plan.
+4. Optimize for developer experience and long-term maintainability.
+
+## Quality and Reliability
+- Add loading, error, and empty states for async/user-facing flows.
+- Validate inputs and handle errors consistently.
+- Preserve existing business logic during refactors unless requested.
+- Prefer minimal, safe changes over broad rewrites.
+- Keep changed areas lint/type clean when practical.
+
+## Performance
+- Optimize rendering, rerenders, bundle size, and API efficiency.
+- Use lazy loading, memoization, caching, and debouncing where justified.
+- Prefer measured optimizations over premature micro-tuning.
+
+## Security
+- Consider authn/authz, input validation, and secure token handling.
+- Prevent common vulnerabilities (XSS, CSRF, injection) per stack norms.
+- Keep environment and secret handling secure.
+
+## Testing
+- Prioritize tests for critical business logic and major user flows.
+- Include important edge cases.
+- Keep tests readable and maintainable.
+
+## AI-Friendly Coding
+- Generate modular, predictable, reusable code.
+- Optimize for low token usage through clear boundaries and naming.
+- Favor patterns that are easy to debug, refactor, and extend.
+
+## Stack-Specific Guidance
+- Apply stack-specific best practices (frontend/backend/mobile/devops) only when relevant to the current repository.
+- Do not force framework/library patterns that are not present in the project.

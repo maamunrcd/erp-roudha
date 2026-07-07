@@ -1,0 +1,14 @@
+---
+description: API service conventions and typing
+globs: src/app/common/api-services/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# API Services
+
+- Build URLs with `environment.*` and `appUrls.*`; avoid inline endpoint strings.
+- Use shared wrappers from `src/app/config/api-config/callMethods.tsx`; avoid raw `axios` in services.
+- Export small named service functions; keep one responsibility per function.
+- Avoid `any` in request or response signatures; prefer typed DTOs and interfaces.
+- Keep query-string building centralized (`getQueryParams`) instead of string concatenation.
+- Keep auth and refresh behavior in shared API config; do not duplicate token logic in each service.

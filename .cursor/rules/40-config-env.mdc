@@ -1,0 +1,13 @@
+---
+description: Environment and config safety and consistency
+globs: src/app/config/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Config and Env
+
+- Source runtime config from `REACT_APP_*` env vars; avoid hardcoded runtime values.
+- Keep `environment.ts` as the central config adapter for the app.
+- If adding required env keys, include a safe fallback or explicit error strategy.
+- Avoid duplicate env key usage patterns that cause ambiguity.
+- Keep URL assembly consistent (`domain + port + service path`).

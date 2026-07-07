@@ -1,0 +1,13 @@
+---
+description: React component and hooks discipline
+globs: src/**/*.tsx
+alwaysApply: false
+---
+
+# React and TSX Conventions
+
+- Follow hooks rules strictly: no conditional hook calls and no hook calls inside JSX conditions.
+- Keep components focused; move side-effect-heavy logic to hooks or services.
+- Prefer typed props and state over `any`.
+- Preserve router guard patterns in `ProtectedRoute` and `Root`.
+- Add brief comments only when logic is non-obvious.

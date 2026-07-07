@@ -1,14 +1,16 @@
 import { createHash } from "crypto";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
-import { renderReceiptPdf, type ReceiptPdfData } from "@/lib/receipts/generate-receipt-pdf";
+import { renderSimpleReceiptPdf, type ReceiptPdfData } from "@/lib/pdf/simple-pdf";
+
+export type { ReceiptPdfData };
 
 export async function writeReceiptPdf(data: ReceiptPdfData): Promise<string> {
   const dir = path.join(process.cwd(), "storage", "receipts");
   await mkdir(dir, { recursive: true });
   const filename = `receipt-${data.slNo}.pdf`;
   const filePath = path.join(dir, filename);
-  const buffer = await renderReceiptPdf(data);
+  const buffer = await renderSimpleReceiptPdf(data);
   await writeFile(filePath, buffer);
   return `/storage/receipts/${filename}`;
 }

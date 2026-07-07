@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { handleApiError, requireSession } from "@/lib/api-utils";
+import { handleApiError, requireSession, requireWriteRole } from "@/lib/api-utils";
 import { groupEnrollmentsByProfileProject, summarizeLedgers } from "@/lib/services/customer-summary.service";
 import { effectiveInstallmentMonths } from "@/lib/utils/contract-terms";
 import { NextResponse } from "next/server";
@@ -82,6 +82,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await requireSession();
+    requireWriteRole(session.user.role);
     const body = await req.json();
     const { enrollSchema } = await import("@/lib/validators/schemas");
     const { enrollCustomer } = await import("@/lib/services/customer-allocation.service");

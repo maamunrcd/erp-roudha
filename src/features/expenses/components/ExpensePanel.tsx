@@ -59,15 +59,25 @@ export function ExpensePanel() {
       fetch(`/api/expenses?${params}`),
       fetch("/api/projects"),
     ]);
-    setExpenses(await expRes.json());
-    const projData = await projRes.json();
-    setProjects(
-      (Array.isArray(projData) ? projData : []).map((p: { id: string; prefix: string; name: string }) => ({
-        id: p.id,
-        prefix: p.prefix,
-        name: p.name,
-      })),
-    );
+    if (!expRes.ok) {
+      const data = await expRes.json().catch(() => ({}));
+      setError(data.error ?? "Failed to load expenses");
+      setExpenses([]);
+    } else {
+      setExpenses(await expRes.json());
+    }
+    if (projRes.ok) {
+      const projData = await projRes.json();
+      setProjects(
+        (Array.isArray(projData) ? projData : []).map((p: { id: string; prefix: string; name: string }) => ({
+          id: p.id,
+          prefix: p.prefix,
+          name: p.name,
+        })),
+      );
+    } else {
+      setProjects([]);
+    }
     setLoading(false);
   }, [filter]);
 

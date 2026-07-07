@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, HEAVY_TX_OPTIONS } from "@/lib/prisma";
 import { summarizeLedgers } from "@/lib/services/customer-summary.service";
 import { ApiError } from "@/lib/api-utils";
 import { validatePricingPhases, normalizePricingPhases } from "@/lib/utils/pricing-phases";
@@ -60,15 +60,16 @@ export async function createProject(input: CreateProjectInput) {
     });
 
     if (totalShares > 0) {
-      for (let i = 1; i <= totalShares; i++) {
-        await tx.share.create({
-          data: { projectId: project.id, shareNumber: i },
-        });
-      }
+      await tx.share.createMany({
+        data: Array.from({ length: totalShares }, (_, index) => ({
+          projectId: project.id,
+          shareNumber: index + 1,
+        })),
+      });
     }
 
     return project;
-  });
+  }, HEAVY_TX_OPTIONS);
 }
 
 export async function updateProject(id: string, input: Partial<CreateProjectInput>) {

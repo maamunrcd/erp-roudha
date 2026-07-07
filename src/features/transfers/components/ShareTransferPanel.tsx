@@ -58,8 +58,15 @@ export function ShareTransferPanel() {
 
   const loadCustomers = useCallback(() => {
     fetch("/api/customers")
-      .then((r) => r.json())
-      .then((list: CustomerOption[]) => setCustomers(list));
+      .then(async (r) => {
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          setError(data.error ?? "Failed to load customers");
+          return [];
+        }
+        return r.json();
+      })
+      .then((list: CustomerOption[]) => setCustomers(Array.isArray(list) ? list : []));
   }, []);
 
   useEffect(() => {

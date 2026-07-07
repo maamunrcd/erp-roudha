@@ -1,13 +1,18 @@
 import { z } from "zod";
 import { PaymentMethod, PaymentPlan, PaymentPurpose, PricingMode, SettlementType } from "@prisma/client";
 
+const optionalEmail = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? undefined : value),
+  z.string().email().optional(),
+);
+
 export const enrollSchema = z
   .object({
     projectId: z.string(),
     shareCount: z.number().int().positive(),
     fullName: z.string().min(2),
     phone: z.string().min(6),
-    email: z.string().email().optional(),
+    email: optionalEmail,
     nid: z.string().optional(),
     address: z.string().optional(),
     paymentPlan: z.nativeEnum(PaymentPlan).optional(),
@@ -66,7 +71,7 @@ export const transferSchema = z.object({
   successor: z.object({
     fullName: z.string().min(2),
     phone: z.string().min(6),
-    email: z.string().email().optional(),
+    email: optionalEmail,
     nid: z.string().optional(),
     address: z.string().optional(),
   }),

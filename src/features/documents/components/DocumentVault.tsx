@@ -99,10 +99,11 @@ export function DocumentVault({ projectId }: DocumentVaultProps) {
           <Input
             id="doc-file"
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            accept=".pdf,.jpg,.jpeg,.png"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             required
           />
+          <p className="mt-1 text-xs text-muted-text">PDF or image — stored as a simple PDF.</p>
         </div>
         <div>
           <Label htmlFor="doc-label">Label</Label>

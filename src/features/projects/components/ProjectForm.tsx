@@ -64,7 +64,10 @@ export function ProjectForm({ initial, projectId, mode }: ProjectFormProps) {
 
   const loadVendors = () => {
     fetch("/api/vendors")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) return [];
+        return r.json();
+      })
       .then(setVendors);
   };
 

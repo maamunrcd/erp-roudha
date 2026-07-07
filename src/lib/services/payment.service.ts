@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, HEAVY_TX_OPTIONS } from "@/lib/prisma";
 import { logAudit, nextReceiptSlNo } from "@/lib/services/audit.service";
 import { receiptFileHash, writeReceiptPdf } from "@/lib/receipts/write-receipt-file";
 import { hmacAnchor } from "@/lib/utils/crypto";
@@ -68,7 +68,6 @@ export async function generateReceipt(
     installmentIndex: data.installmentIndex,
     amount: data.amount,
     paymentMethod: data.paymentMethod,
-    signatureAnchor,
     issuedAt,
   });
 
@@ -185,5 +184,5 @@ export async function registerPayment(input: RegisterPaymentInput) {
     }
 
     return { ledger: updated, receipt };
-  });
+  }, HEAVY_TX_OPTIONS);
 }

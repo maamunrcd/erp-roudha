@@ -66,8 +66,11 @@ export function CustomerMatrix() {
     if (prefix) params.set("prefix", prefix);
     if (search) params.set("search", search);
     fetch(`/api/customers?${params}`)
-      .then((r) => r.json())
-      .then((data) => setRows(data))
+      .then(async (r) => {
+        if (!r.ok) return [];
+        return r.json();
+      })
+      .then((data) => setRows(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
   }, [prefix, search]);
 

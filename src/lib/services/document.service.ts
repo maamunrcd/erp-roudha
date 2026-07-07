@@ -4,6 +4,7 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/services/audit.service";
 import { ApiError } from "@/lib/api-utils";
+import { wrapBufferAsSimplePdf } from "@/lib/pdf/simple-pdf";
 
 export interface UploadDocumentInput {
   file: Buffer;
@@ -45,15 +46,18 @@ export async function uploadDocument(input: UploadDocumentInput) {
     throw new ApiError("Document must be linked to a project or customer", 400);
   }
 
-  const sha256Hash = createHash("sha256").update(input.file).digest("hex");
   const scope = input.projectId ?? input.customerId ?? "general";
   const dir = path.join(process.cwd(), "storage", "documents", scope);
   await mkdir(dir, { recursive: true });
 
-  const safeName = sanitizeFilename(input.originalName);
-  const storedName = `${sha256Hash.slice(0, 12)}-${safeName}`;
+  const label = input.label?.trim() || input.originalName;
+  const pdfBuffer = await wrapBufferAsSimplePdf(input.file, input.mimeType, label);
+  const pdfHash = createHash("sha256").update(pdfBuffer).digest("hex");
+
+  const safeName = sanitizeFilename(input.originalName.replace(/\.[^.]+$/, "") || "document");
+  const storedName = `${pdfHash.slice(0, 12)}-${safeName}.pdf`;
   const absolutePath = path.join(dir, storedName);
-  await writeFile(absolutePath, input.file);
+  await writeFile(absolutePath, pdfBuffer);
 
   const fileUrl = `/storage/documents/${scope}/${storedName}`;
 
@@ -61,10 +65,10 @@ export async function uploadDocument(input: UploadDocumentInput) {
     const doc = await tx.document.create({
       data: {
         fileUrl,
-        sha256Hash,
-        label: input.label?.trim() || input.originalName,
-        mimeType: input.mimeType,
-        fileSize: input.file.length,
+        sha256Hash: pdfHash,
+        label,
+        mimeType: "application/pdf",
+        fileSize: pdfBuffer.length,
         projectId: input.projectId ?? null,
         customerId: input.customerId ?? null,
         isPublic: input.isPublic ?? false,

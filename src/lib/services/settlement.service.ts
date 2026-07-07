@@ -1,6 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, HEAVY_TX_OPTIONS } from "@/lib/prisma";
 import { logAudit } from "@/lib/services/audit.service";
 import { generateReceipt } from "@/lib/services/payment.service";
+import { ApiError } from "@/lib/api-utils";
 import {
   CustomerStatus,
   PaymentPurpose,
@@ -73,7 +74,7 @@ export async function settleFullPayment(input: SettleInput) {
   return prisma.$transaction(async (tx) => {
     const customer = await tx.customer.findUniqueOrThrow({ where: { id: input.customerId } });
     if (customer.settlementStatus !== SettlementStatus.NONE) {
-      throw new Error("Customer already settled");
+      throw new ApiError("Customer already settled", 400);
     }
 
     const purposes: PaymentPurpose[] = [PaymentPurpose.DOWNPAYMENT, PaymentPurpose.INSTALLMENT];
@@ -97,7 +98,7 @@ export async function settleFullPayment(input: SettleInput) {
 
     const totalOutstanding = rows.reduce((s, r) => s + (r.amountDue - r.amountPaid), 0);
     if (Math.abs(input.amountPaid - totalOutstanding) > 0.01) {
-      throw new Error(`Amount must equal outstanding: ৳${totalOutstanding}`);
+      throw new ApiError(`Amount must equal outstanding: ৳${totalOutstanding}`, 400);
     }
 
     const settlement = await tx.paymentSettlement.create({
@@ -161,5 +162,5 @@ export async function settleFullPayment(input: SettleInput) {
     });
 
     return { settlement, receipt };
-  });
+  }, HEAVY_TX_OPTIONS);
 }

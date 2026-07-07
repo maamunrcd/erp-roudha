@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma, HEAVY_TX_OPTIONS } from "@/lib/prisma";
 import { generateTrackingId } from "@/lib/services/customer-id.service";
 import { logAudit } from "@/lib/services/audit.service";
 import { syncShareCount } from "@/lib/services/customer-allocation.service";
@@ -10,6 +10,7 @@ import {
   PaymentPurpose,
   PaymentStatus,
   ShareAllocationStatus,
+  type PaymentLedger,
   type Prisma,
 } from "@prisma/client";
 import { ApiError } from "@/lib/api-utils";
@@ -34,8 +35,27 @@ const MERGEABLE_STATUSES: CustomerStatus[] = [
   CustomerStatus.SHARE_TO_SELL,
 ];
 
+function ledgerKey(purpose: PaymentPurpose, installmentIndex: number | null) {
+  return `${purpose}:${installmentIndex ?? "x"}`;
+}
+
+async function loadLedgerCache(
+  tx: Prisma.TransactionClient,
+  customerId: string,
+): Promise<Map<string, PaymentLedger>> {
+  const rows = await tx.paymentLedger.findMany({
+    where: { customerId, isFrozen: false },
+  });
+  const cache = new Map<string, PaymentLedger>();
+  for (const row of rows) {
+    cache.set(ledgerKey(row.purpose, row.installmentIndex), row);
+  }
+  return cache;
+}
+
 async function addToBuyerLedger(
   tx: Prisma.TransactionClient,
+  buyerCache: Map<string, PaymentLedger>,
   customerId: string,
   purpose: PaymentPurpose,
   installmentIndex: number | null,
@@ -44,26 +64,21 @@ async function addToBuyerLedger(
 ) {
   if (addAmount <= 0.01) return;
 
-  const existing = await tx.paymentLedger.findFirst({
-    where: {
-      customerId,
-      purpose,
-      installmentIndex: purpose === PaymentPurpose.INSTALLMENT ? installmentIndex : null,
-      isFrozen: false,
-    },
-  });
+  const key = ledgerKey(purpose, installmentIndex);
+  const existing = buyerCache.get(key);
 
   if (existing) {
     const newDue = existing.amountDue + addAmount;
-    await tx.paymentLedger.update({
+    const updated = await tx.paymentLedger.update({
       where: { id: existing.id },
       data: {
         amountDue: newDue,
         status: existing.amountPaid >= newDue - 0.01 ? PaymentStatus.PAID : existing.status,
       },
     });
+    buyerCache.set(key, updated);
   } else {
-    await tx.paymentLedger.create({
+    const created = await tx.paymentLedger.create({
       data: {
         customerId,
         purpose,
@@ -74,11 +89,13 @@ async function addToBuyerLedger(
         dueDate: dueDate ?? undefined,
       },
     });
+    buyerCache.set(key, created);
   }
 }
 
 async function reduceSellerLedger(
   tx: Prisma.TransactionClient,
+  sellerCache: Map<string, PaymentLedger>,
   customerId: string,
   purpose: PaymentPurpose,
   installmentIndex: number | null,
@@ -86,25 +103,19 @@ async function reduceSellerLedger(
 ) {
   if (reduceAmount <= 0.01) return;
 
-  const existing = await tx.paymentLedger.findFirst({
-    where: {
-      customerId,
-      purpose,
-      installmentIndex: purpose === PaymentPurpose.INSTALLMENT ? installmentIndex : null,
-      isFrozen: false,
-    },
-  });
-
+  const key = ledgerKey(purpose, installmentIndex);
+  const existing = sellerCache.get(key);
   if (!existing) return;
 
   const newDue = Math.max(existing.amountPaid, existing.amountDue - reduceAmount);
-  await tx.paymentLedger.update({
+  const updated = await tx.paymentLedger.update({
     where: { id: existing.id },
     data: {
       amountDue: newDue,
       status: existing.amountPaid >= newDue - 0.01 ? PaymentStatus.PAID : existing.status,
     },
   });
+  sellerCache.set(key, updated);
 }
 
 async function transferShareObligations(
@@ -119,13 +130,10 @@ async function transferShareObligations(
   installmentMonths: number,
   sellerKeepsShares: boolean,
 ) {
-  const downpaymentRow = await tx.paymentLedger.findFirst({
-    where: {
-      customerId: fromCustomerId,
-      purpose: PaymentPurpose.DOWNPAYMENT,
-      isFrozen: false,
-    },
-  });
+  const sellerCache = await loadLedgerCache(tx, fromCustomerId);
+  const buyerCache = await loadLedgerCache(tx, toCustomerId);
+
+  const downpaymentRow = sellerCache.get(ledgerKey(PaymentPurpose.DOWNPAYMENT, null));
 
   if (downpaymentRow) {
     const dpRemaining = Math.min(
@@ -133,22 +141,23 @@ async function transferShareObligations(
       Math.max(0, downpaymentRow.amountDue - downpaymentRow.amountPaid),
     );
     if (dpRemaining > 0.01) {
-      await addToBuyerLedger(tx, toCustomerId, PaymentPurpose.DOWNPAYMENT, null, dpRemaining, downpaymentRow.dueDate);
+      await addToBuyerLedger(
+        tx,
+        buyerCache,
+        toCustomerId,
+        PaymentPurpose.DOWNPAYMENT,
+        null,
+        dpRemaining,
+        downpaymentRow.dueDate,
+      );
       if (sellerKeepsShares) {
-        await reduceSellerLedger(tx, fromCustomerId, PaymentPurpose.DOWNPAYMENT, null, dpRemaining);
+        await reduceSellerLedger(tx, sellerCache, fromCustomerId, PaymentPurpose.DOWNPAYMENT, null, dpRemaining);
       }
     }
   }
 
   for (let i = cutoffInstallment + 1; i <= installmentMonths; i++) {
-    const sellerRow = await tx.paymentLedger.findFirst({
-      where: {
-        customerId: fromCustomerId,
-        purpose: PaymentPurpose.INSTALLMENT,
-        installmentIndex: i,
-        isFrozen: false,
-      },
-    });
+    const sellerRow = sellerCache.get(ledgerKey(PaymentPurpose.INSTALLMENT, i));
 
     const transferMonthly = sellerRow
       ? Math.min(allocation.monthlyInstallment, Math.max(0, sellerRow.amountDue - sellerRow.amountPaid))
@@ -157,6 +166,7 @@ async function transferShareObligations(
     if (transferMonthly > 0.01) {
       await addToBuyerLedger(
         tx,
+        buyerCache,
         toCustomerId,
         PaymentPurpose.INSTALLMENT,
         i,
@@ -164,7 +174,7 @@ async function transferShareObligations(
         sellerRow?.dueDate,
       );
       if (sellerKeepsShares) {
-        await reduceSellerLedger(tx, fromCustomerId, PaymentPurpose.INSTALLMENT, i, transferMonthly);
+        await reduceSellerLedger(tx, sellerCache, fromCustomerId, PaymentPurpose.INSTALLMENT, i, transferMonthly);
       }
     }
   }
@@ -391,5 +401,5 @@ export async function executeShareTransfer(input: TransferInput) {
     const updatedBuyer = await tx.customer.findUniqueOrThrow({ where: { id: toCustomer.id } });
 
     return { fromCustomer, toCustomer: updatedBuyer, log, merged };
-  });
+  }, HEAVY_TX_OPTIONS);
 }

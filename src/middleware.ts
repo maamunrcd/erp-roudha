@@ -1,7 +1,7 @@
-import { auth } from "@/lib/auth";
-import { verifyPortalToken, PORTAL_COOKIE } from "@/lib/portal-auth";
+import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyPortalToken, PORTAL_COOKIE } from "@/lib/portal-auth-edge";
 
 const adminPublicPaths = ["/login", "/api/auth"];
 const portalPublicPaths = [
@@ -13,7 +13,7 @@ const portalPublicPaths = [
   "/api/portal/reset-password",
 ];
 
-export default auth(async (req: NextRequest & { auth: unknown }) => {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isPortalRoute = pathname.startsWith("/portal") || pathname.startsWith("/api/portal");
   const isAdminApi = pathname.startsWith("/api/") && !pathname.startsWith("/api/portal");
@@ -22,7 +22,6 @@ export default auth(async (req: NextRequest & { auth: unknown }) => {
     return NextResponse.redirect(new URL("/portal", req.url));
   }
 
-  // Customer portal auth (separate from admin NextAuth)
   if (isPortalRoute) {
     const isPortalPublic = portalPublicPaths.some((p) => pathname.startsWith(p));
     const portalToken = req.cookies.get(PORTAL_COOKIE)?.value;
@@ -51,7 +50,10 @@ export default auth(async (req: NextRequest & { auth: unknown }) => {
         const onChangePasswordApi = pathname === "/api/portal/change-password";
         if (session.mustChangePassword && !onChangePasswordPage && !onChangePasswordApi) {
           if (pathname.startsWith("/api/portal")) {
-            return NextResponse.json({ error: "Password change required", code: "PASSWORD_CHANGE_REQUIRED" }, { status: 403 });
+            return NextResponse.json(
+              { error: "Password change required", code: "PASSWORD_CHANGE_REQUIRED" },
+              { status: 403 },
+            );
           }
           return NextResponse.redirect(new URL("/portal/change-password", req.url));
         }
@@ -66,29 +68,31 @@ export default auth(async (req: NextRequest & { auth: unknown }) => {
     return NextResponse.next();
   }
 
-  // Admin auth
   const isAdminPublic = adminPublicPaths.some((p) => pathname.startsWith(p));
-  const session = (req as { auth?: { user?: unknown } }).auth;
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  });
+  const role = typeof token?.role === "string" ? token.role : undefined;
 
-  if (!session?.user && !isAdminPublic && pathname.startsWith("/admin")) {
+  if (!token && !isAdminPublic && pathname.startsWith("/admin")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (!session?.user && isAdminApi) {
+  if (!token && isAdminApi) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (pathname === "/login" && session?.user) {
+  if (pathname === "/login" && token) {
     return NextResponse.redirect(new URL("/admin", req.url));
   }
 
-  const role = (session as { user?: { role?: string } })?.user?.role;
   if (role === "AUDITOR" && isAdminApi && ["POST", "PATCH", "PUT", "DELETE"].includes(req.method)) {
     return NextResponse.json({ error: "Auditors have read-only access" }, { status: 403 });
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|storage).*)"],

@@ -42,8 +42,6 @@ next-env.d.ts
 # prisma
 prisma/dev.db
 prisma/dev.db-journal
-
-# receipts
 /storage/receipts/*
 !/storage/receipts/.gitkeep
 /storage/documents/*

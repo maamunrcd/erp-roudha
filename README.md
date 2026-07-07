@@ -58,11 +58,17 @@ This resets the database, re-runs migrations, and seeds **only** the admin accou
 | `npm run db:fresh` | Full DB reset + migrations + admin-only seed |
 | `npm run db:studio` | Open Prisma Studio |
 
-## Switching to PostgreSQL
+## Database (PostgreSQL / Neon)
 
-1. Change `provider` in `prisma/schema.prisma` to `postgresql`
-2. Set `DATABASE_URL` to your Postgres connection string
-3. Run `npx prisma migrate dev`
+Set `DATABASE_URL` to your Neon connection string (Vercel Neon integration sets this automatically).
+
+Local:
+```bash
+cp .env.example .env
+# paste DATABASE_URL from Neon → Show secret
+npx prisma migrate deploy
+npm run db:seed
+```
 
 ## Project Structure
 

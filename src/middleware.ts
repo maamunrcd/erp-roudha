@@ -79,7 +79,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (!token && isAdminApi) {
+  if (!token && isAdminApi && !isAdminPublic) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

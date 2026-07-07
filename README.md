@@ -60,13 +60,20 @@ This resets the database, re-runs migrations, and seeds **only** the admin accou
 
 ## Database (PostgreSQL / Neon)
 
-Set `DATABASE_URL` to your Neon connection string (Vercel Neon integration sets this automatically).
+Set both connection strings from Neon:
+
+| Variable | Neon dashboard | Used for |
+|----------|----------------|----------|
+| `DATABASE_URL` | **Pooled** connection (`-pooler` host) | App runtime |
+| `DATABASE_URL_UNPOOLED` | **Direct** connection (no `-pooler`) | `prisma migrate deploy` |
+
+Vercel Neon integration sets `DATABASE_URL` only — you must also add `DATABASE_URL_UNPOOLED` manually (copy the direct URL from Neon, or remove `-pooler` from the pooled host).
 
 Local:
 ```bash
 cp .env.example .env
-# paste DATABASE_URL from Neon → Show secret
-npx prisma migrate deploy
+# paste both DATABASE_URL and DATABASE_URL_UNPOOLED from Neon
+npm run db:deploy
 npm run db:seed
 ```
 
@@ -83,6 +90,8 @@ src/
 ## Troubleshooting
 
 **Prisma client not found** — Run `npx prisma generate`
+
+**Build fails with P1002 / advisory lock timeout** — Add `DATABASE_URL_UNPOOLED` (Neon direct URL) in Vercel environment variables. Migrations cannot run through the PgBouncer pooler.
 
 **Port 3000 in use** — `PORT=3001 npm run dev`
 

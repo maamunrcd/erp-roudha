@@ -10,6 +10,10 @@ import { formatCurrency } from "@/lib/i18n/format";
 import { FormSkeleton } from "@/components/ui/Skeleton";
 import { customerStatusClass, customerStatusLabel } from "@/lib/constants/customer-status";
 import { CustomerStatusSelect } from "@/features/customers/components/CustomerStatusSelect";
+import {
+  REGISTRATION_STAGE_OPTIONS,
+  registrationStageLabel,
+} from "@/lib/constants/registration-stage";
 
 interface CustomerEditFormProps {
   customerId: string;
@@ -25,6 +29,8 @@ interface CustomerDetail {
   status: string;
   graceStatus: string;
   isPaused: boolean;
+  registrationStage: string;
+  registrationNotes: string | null;
   portalMustChangePassword: boolean;
   portalPasswordChangedAt: string | null;
   portalLoginPhone: string;
@@ -53,6 +59,8 @@ export function CustomerEditForm({ customerId }: CustomerEditFormProps) {
   const [address, setAddress] = useState("");
   const [status, setStatus] = useState("ACTIVE");
   const [isPaused, setIsPaused] = useState(false);
+  const [registrationStage, setRegistrationStage] = useState("NOT_STARTED");
+  const [registrationNotes, setRegistrationNotes] = useState("");
   const [portalPassword, setPortalPassword] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -69,6 +77,8 @@ export function CustomerEditForm({ customerId }: CustomerEditFormProps) {
         setAddress(d.address ?? "");
         setStatus(d.status);
         setIsPaused(d.isPaused ?? false);
+        setRegistrationStage(d.registrationStage ?? "NOT_STARTED");
+        setRegistrationNotes(d.registrationNotes ?? "");
       });
   }, [customerId]);
 
@@ -88,6 +98,8 @@ export function CustomerEditForm({ customerId }: CustomerEditFormProps) {
         status,
         isPaused,
         graceStatus: isPaused ? "PAUSED" : "NONE",
+        registrationStage,
+        registrationNotes: registrationNotes || null,
         ...(portalPassword ? { portalPassword } : {}),
       }),
     });
@@ -164,6 +176,37 @@ export function CustomerEditForm({ customerId }: CustomerEditFormProps) {
             ) : (
               <CustomerStatusSelect id="status" value={status} onChange={setStatus} />
             )}
+          </div>
+
+          <div className="rounded-lg border border-card-border bg-surface-alt/40 p-4 space-y-3">
+            <p className="text-sm font-medium">Registration progress</p>
+            <p className="text-xs text-muted-text">
+              Current: {registrationStageLabel(registrationStage)}
+            </p>
+            <div>
+              <Label htmlFor="registrationStage">Stage</Label>
+              <select
+                id="registrationStage"
+                value={registrationStage}
+                onChange={(e) => setRegistrationStage(e.target.value)}
+                className="w-full rounded-lg border border-card-border bg-input-bg px-3 py-2 text-sm"
+              >
+                {REGISTRATION_STAGE_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="registrationNotes">Notes</Label>
+              <Input
+                id="registrationNotes"
+                value={registrationNotes}
+                onChange={(e) => setRegistrationNotes(e.target.value)}
+                placeholder="Deed/mutation/registry notes"
+              />
+            </div>
           </div>
 
           <div className="rounded-lg border border-card-border bg-surface-alt/40 p-4">

@@ -17,6 +17,10 @@ interface EnrollCustomerFormProps {
   availableShareCount: number;
   pricingConfigured?: boolean;
   redirectTo?: string;
+  initialFullName?: string;
+  initialPhone?: string;
+  leadId?: string;
+  initialSalesAgentId?: string;
 }
 
 interface ExistingProfile {
@@ -71,10 +75,14 @@ export function EnrollCustomerForm({
   availableShareCount,
   pricingConfigured = true,
   redirectTo = "/admin/projects",
+  initialFullName = "",
+  initialPhone = "",
+  leadId,
+  initialSalesAgentId = "",
 }: EnrollCustomerFormProps) {
   const router = useRouter();
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [fullName, setFullName] = useState(initialFullName);
+  const [phone, setPhone] = useState(initialPhone);
   const [email, setEmail] = useState("");
   const [nid, setNid] = useState("");
   const [address, setAddress] = useState("");
@@ -88,6 +96,8 @@ export function EnrollCustomerForm({
   const [installmentMonths, setInstallmentMonths] = useState("");
   const [contractStartDate, setContractStartDate] = useState(todayInputValue);
   const [discountReason, setDiscountReason] = useState("");
+  const [salesAgentId, setSalesAgentId] = useState(initialSalesAgentId);
+  const [agents, setAgents] = useState<Array<{ id: string; fullName: string; defaultCommissionPct: number }>>([]);
   const [projectPricing, setProjectPricing] = useState<ProjectPricing | null>(null);
   const [existingProfile, setExistingProfile] = useState<ExistingProfile | null>(null);
   const [error, setError] = useState("");
@@ -106,6 +116,19 @@ export function EnrollCustomerForm({
             installmentMonths: data.project.installmentMonths,
             pricingPhases: data.project.pricingPhases ?? [],
           });
+        }
+      });
+    fetch("/api/sales-agents?active=1")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setAgents(
+            data.map((a: { id: string; fullName: string; defaultCommissionPct: number }) => ({
+              id: a.id,
+              fullName: a.fullName,
+              defaultCommissionPct: a.defaultCommissionPct,
+            })),
+          );
         }
       });
   }, [projectId]);
@@ -232,6 +255,8 @@ export function EnrollCustomerForm({
       useComboOffer: pricingMode === "STANDARD" ? useComboOffer : false,
       contractStartDate,
       customDownpayment: contractSummary.downpayment,
+      ...(salesAgentId ? { salesAgentId } : {}),
+      ...(leadId ? { leadId } : {}),
     };
 
     if (installmentMonths && Number(installmentMonths) !== projectPricing?.installmentMonths) {
@@ -257,6 +282,15 @@ export function EnrollCustomerForm({
     }
     setCreatedTrackingId(data.customer?.trackingId ?? null);
     setPortalCredentials(data.portalCredentials ?? null);
+
+    if (leadId && data.customer?.id) {
+      await fetch(`/api/leads/${leadId}/convert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: data.customer.id }),
+      });
+    }
+
     if (!data.portalCredentials) {
       router.push(redirectTo);
       router.refresh();
@@ -325,6 +359,17 @@ export function EnrollCustomerForm({
           <div>
             <Label htmlFor="nid">NID</Label>
             <Input id="nid" value={nid} onChange={(e) => setNid(e.target.value)} />
+          </div>
+          <div className="md:col-span-2">
+            <Label htmlFor="salesAgent">Sales agent (for commission)</Label>
+            <Select id="salesAgent" value={salesAgentId} onChange={(e) => setSalesAgentId(e.target.value)}>
+              <option value="">None</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.fullName} ({a.defaultCommissionPct}%)
+                </option>
+              ))}
+            </Select>
           </div>
         </div>
         <div>

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { EnrollCustomerForm } from "@/features/customers/components/EnrollCustomerForm";
+import { FormSkeleton } from "@/components/ui/Skeleton";
 
-export default function EnrollCustomerPage() {
+function EnrollCustomerContent() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const [availableShareCount, setAvailableShareCount] = useState(0);
   const [projectName, setProjectName] = useState("");
   const [projectPrefix, setProjectPrefix] = useState("");
@@ -22,16 +24,36 @@ export default function EnrollCustomerPage() {
       });
   }, [id]);
 
+  const leadId = searchParams.get("leadId") ?? undefined;
+  const initialFullName = searchParams.get("name") ?? "";
+  const initialPhone = searchParams.get("phone") ?? "";
+  const initialSalesAgentId = searchParams.get("agentId") ?? "";
+
   return (
     <div>
       <h1 className="mb-2 text-2xl font-semibold">Add customer</h1>
-      <p className="mb-6 text-sm text-muted-text">{projectName}</p>
+      <p className="mb-6 text-sm text-muted-text">
+        {projectName}
+        {leadId ? " · Converting from lead" : ""}
+      </p>
       <EnrollCustomerForm
         projectId={id}
         projectPrefix={projectPrefix}
         availableShareCount={availableShareCount}
         pricingConfigured={pricingConfigured}
+        initialFullName={initialFullName}
+        initialPhone={initialPhone}
+        leadId={leadId}
+        initialSalesAgentId={initialSalesAgentId}
       />
     </div>
+  );
+}
+
+export default function EnrollCustomerPage() {
+  return (
+    <Suspense fallback={<FormSkeleton fields={6} />}>
+      <EnrollCustomerContent />
+    </Suspense>
   );
 }

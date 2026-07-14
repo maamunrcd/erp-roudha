@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/services/audit.service";
 import { findOrCreateProfile, normalizePhone, summarizeLedgers } from "@/lib/services/customer-summary.service";
 import { hashPortalPassword } from "@/lib/services/portal.service";
 import { effectiveInstallmentMonths } from "@/lib/utils/contract-terms";
-import { CustomerStatus, GraceStatus, ShareAllocationStatus } from "@prisma/client";
+import { CustomerStatus, GraceStatus, RegistrationStage, ShareAllocationStatus } from "@prisma/client";
 
 export interface UpdateCustomerInput {
   fullName?: string;
@@ -16,6 +16,8 @@ export interface UpdateCustomerInput {
   portalPassword?: string;
   graceStatus?: GraceStatus;
   isPaused?: boolean;
+  registrationStage?: RegistrationStage;
+  registrationNotes?: string | null;
 }
 
 export async function getCustomerDetail(id: string) {
@@ -94,6 +96,9 @@ export async function getCustomerDetail(id: string) {
     status: customer.status,
     graceStatus: customer.graceStatus,
     isPaused: customer.isPaused,
+    registrationStage: customer.registrationStage,
+    registrationNotes: customer.registrationNotes,
+    registrationUpdatedAt: customer.registrationUpdatedAt,
     settlementStatus: customer.settlementStatus,
     shareCount: customer.shareCount,
     project: customer.project,
@@ -154,6 +159,15 @@ export async function updateCustomer(id: string, input: UpdateCustomerInput, use
               : data.status,
         ...(graceStatus !== undefined ? { graceStatus } : {}),
         ...(isPaused !== undefined ? { isPaused } : {}),
+        ...(input.registrationStage !== undefined
+          ? {
+              registrationStage: input.registrationStage,
+              registrationUpdatedAt: new Date(),
+            }
+          : {}),
+        ...(input.registrationNotes !== undefined
+          ? { registrationNotes: input.registrationNotes }
+          : {}),
       },
     });
 

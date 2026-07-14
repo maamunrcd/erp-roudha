@@ -116,6 +116,86 @@ enum ReceiptStatus {
   VOIDED
 }
 
+enum LeadStatus {
+  NEW
+  CONTACTED
+  SITE_VISIT
+  NEGOTIATING
+  CONVERTED
+  LOST
+}
+
+enum LeadSource {
+  WALK_IN
+  PHONE
+  WHATSAPP
+  REFERRAL
+  FACEBOOK
+  OTHER
+}
+
+enum RegistrationStage {
+  NOT_STARTED
+  AGREEMENT_SIGNED
+  DEED_PREPARATION
+  MUTATION_PENDING
+  MUTATION_DONE
+  REGISTRY_PENDING
+  REGISTRY_DONE
+  HANDOVER_DONE
+}
+
+enum ReminderType {
+  FOLLOW_UP
+  SITE_VISIT
+  INSTALLMENT_DUE
+  DOCUMENT
+  REGISTRATION
+  CUSTOM
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+  CANCELLED
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+enum CommissionBasis {
+  ENROLLMENT
+  DOWNPAYMENT
+  PAYMENT
+  MANUAL
+}
+
+enum DeveloperAgreementStatus {
+  DRAFT
+  SIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum FlatStatus {
+  PLANNED
+  AVAILABLE
+  RESERVED
+  ALLOCATED
+  HANDED_OVER
+}
+
+enum HandoverStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -130,6 +210,11 @@ model User {
   contractAdjustments  ContractAdjustmentLog[]
   customerNotes        CustomerNote[]
   expensesRecorded     CompanyExpense[]
+  assignedLeads        Lead[]                @relation("LeadAssignee")
+  remindersCreated     Reminder[]
+  linkedSalesAgent     SalesAgent?
+  landValuations       LandValuation[]
+  handoversRecorded    Handover[]            @relation("HandoverRecorder")
 }
 
 model VendorCompany {
@@ -174,6 +259,12 @@ model Project {
   documents       Document[]
   serialCounters  ProjectSerialCounter[]
   expenses        CompanyExpense[]
+  leads           Lead[]
+  commissions     Commission[]
+  landValuations  LandValuation[]
+  developerAgreements DeveloperAgreement[]
+  flats           Flat[]
+  handovers       Handover[]
 }
 
 model ProjectSerialCounter {
@@ -200,6 +291,7 @@ model Share {
   activeCustomer Customer?       @relation("ActiveShareHolder", fields: [activeCustomerId], references: [id])
   allocations    CustomerShare[]
   transferLogs   ShareTransferLog[]
+  flatLinks      FlatShareLink[]
 
   @@unique([projectId, shareNumber])
 }
@@ -253,6 +345,10 @@ model Customer {
   graceStatus        GraceStatus        @default(NONE)
   isPaused           Boolean            @default(false)
   verificationStatus VerificationStatus @default(PENDING)
+  registrationStage  RegistrationStage  @default(NOT_STARTED)
+  registrationNotes  String?
+  registrationUpdatedAt DateTime?
+  salesAgentId       String?
   contractStartDate  DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -271,6 +367,12 @@ model Customer {
   activeShares   Share[]              @relation("ActiveShareHolder")
   transfersFrom  ShareTransferLog[]   @relation("TransferFrom")
   transfersTo    ShareTransferLog[]   @relation("TransferTo")
+  sourceLeads    Lead[]               @relation("LeadConvertedCustomer")
+  reminders      Reminder[]
+  salesAgent     SalesAgent?          @relation(fields: [salesAgentId], references: [id])
+  commissions    Commission[]
+  flats          Flat[]
+  handovers      Handover[]
 }
 
 model CustomerContract {
@@ -480,4 +582,206 @@ model CompanyExpense {
   @@index([expenseDate])
   @@index([category])
   @@index([isProjectExpense])
+}
+
+model Lead {
+  id                   String     @id @default(cuid())
+  fullName             String
+  phone                String
+  email                String?
+  source               LeadSource @default(PHONE)
+  status               LeadStatus @default(NEW)
+  interestNotes        String?
+  projectId            String?
+  assignedToUserId     String?
+  salesAgentId         String?
+  nextFollowUpAt       DateTime?
+  siteVisitAt          DateTime?
+  siteVisitNotes       String?
+  lostReason           String?
+  convertedCustomerId  String?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  project           Project?    @relation(fields: [projectId], references: [id])
+  assignedTo        User?       @relation("LeadAssignee", fields: [assignedToUserId], references: [id])
+  salesAgent        SalesAgent? @relation(fields: [salesAgentId], references: [id])
+  convertedCustomer Customer?   @relation("LeadConvertedCustomer", fields: [convertedCustomerId], references: [id])
+  reminders         Reminder[]
+  commissions       Commission[]
+
+  @@index([status])
+  @@index([phone])
+  @@index([nextFollowUpAt])
+  @@index([salesAgentId])
+}
+
+model Reminder {
+  id               String         @id @default(cuid())
+  title            String
+  type             ReminderType   @default(FOLLOW_UP)
+  status           ReminderStatus @default(PENDING)
+  dueAt            DateTime
+  notes            String?
+  leadId           String?
+  customerId       String?
+  createdByUserId  String
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  lead      Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdByUserId], references: [id])
+
+  @@index([status, dueAt])
+  @@index([leadId])
+  @@index([customerId])
+}
+
+model SalesAgent {
+  id                   String   @id @default(cuid())
+  fullName             String
+  phone                String
+  email                String?
+  isActive             Boolean  @default(true)
+  defaultCommissionPct Float    @default(2)
+  notes                String?
+  userId               String?  @unique
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user         User?        @relation(fields: [userId], references: [id])
+  leads        Lead[]
+  customers    Customer[]
+  commissions  Commission[]
+
+  @@index([isActive])
+  @@index([phone])
+}
+
+model Commission {
+  id           String           @id @default(cuid())
+  agentId      String
+  customerId   String?
+  leadId       String?
+  projectId    String?
+  basis        CommissionBasis  @default(DOWNPAYMENT)
+  status       CommissionStatus @default(PENDING)
+  ratePercent  Float
+  baseAmount   Float
+  amount       Float
+  notes        String?
+  paidAt       DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  agent    SalesAgent @relation(fields: [agentId], references: [id])
+  customer Customer?  @relation(fields: [customerId], references: [id])
+  lead     Lead?      @relation(fields: [leadId], references: [id])
+  project  Project?   @relation(fields: [projectId], references: [id])
+
+  @@index([status])
+  @@index([agentId])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+model LandValuation {
+  id               String   @id @default(cuid())
+  projectId        String
+  valuedAt         DateTime
+  landValue        Float
+  notes            String?
+  recordedByUserId String
+  createdAt        DateTime @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  recordedBy User    @relation(fields: [recordedByUserId], references: [id])
+
+  @@index([projectId, valuedAt])
+}
+
+model DeveloperAgreement {
+  id                    String                    @id @default(cuid())
+  projectId             String
+  developerName         String
+  contactPhone          String?
+  contactEmail          String?
+  signedAt              DateTime?
+  ourSharePercent       Float?
+  developerSharePercent Float?
+  constructionStart     DateTime?
+  expectedCompletion    DateTime?
+  status                DeveloperAgreementStatus  @default(DRAFT)
+  milestones            String                    @default("[]")
+  notes                 String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model Flat {
+  id         String     @id @default(cuid())
+  projectId  String
+  code       String
+  building   String?
+  floor      Int?
+  flatNumber String?
+  sizeSqft   Float?
+  bedrooms   Int?
+  status     FlatStatus @default(PLANNED)
+  customerId String?
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  project  Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  customer Customer?       @relation(fields: [customerId], references: [id])
+  shareLinks FlatShareLink[]
+  handovers  Handover[]
+
+  @@unique([projectId, code])
+  @@index([projectId, status])
+  @@index([customerId])
+}
+
+model FlatShareLink {
+  id        String   @id @default(cuid())
+  flatId    String
+  shareId   String   @unique
+  createdAt DateTime @default(now())
+
+  flat  Flat  @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  share Share @relation(fields: [shareId], references: [id], onDelete: Cascade)
+
+  @@index([flatId])
+}
+
+model Handover {
+  id                 String         @id @default(cuid())
+  projectId          String
+  customerId         String
+  flatId             String?
+  status             HandoverStatus @default(NOT_STARTED)
+  keysDelivered      Boolean        @default(false)
+  documentsDelivered Boolean        @default(false)
+  snagNotes          String?
+  notes              String?
+  handedOverAt       DateTime?
+  recordedByUserId   String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  customer   Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  flat       Flat?     @relation(fields: [flatId], references: [id])
+  recordedBy User?     @relation("HandoverRecorder", fields: [recordedByUserId], references: [id])
+
+  @@unique([customerId])
+  @@index([projectId, status])
 }

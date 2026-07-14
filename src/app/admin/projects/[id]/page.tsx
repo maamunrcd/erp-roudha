@@ -98,6 +98,18 @@ export default function ProjectDetailPage() {
           <Link href={`/admin/projects/${id}/edit`}>
             <Button variant="ghost">Edit</Button>
           </Link>
+          <Link href={`/admin/land-value`}>
+            <Button variant="ghost">Land value</Button>
+          </Link>
+          <Link href={`/admin/developers`}>
+            <Button variant="ghost">Developers</Button>
+          </Link>
+          <Link href={`/admin/flats`}>
+            <Button variant="ghost">Flats</Button>
+          </Link>
+          <Link href={`/admin/handovers`}>
+            <Button variant="ghost">Handovers</Button>
+          </Link>
           <Button variant="danger" onClick={handleDelete} disabled={deleting}>
             {deleting ? "Deleting…" : "Delete"}
           </Button>

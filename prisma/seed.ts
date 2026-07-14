@@ -15,8 +15,17 @@ async function wipeAllData() {
   await prisma.shareTransferLog.deleteMany();
   await prisma.contractAdjustmentLog.deleteMany();
   await prisma.customerShare.deleteMany();
+  await prisma.commission.deleteMany();
+  await prisma.reminder.deleteMany();
+  await prisma.handover.deleteMany();
+  await prisma.flatShareLink.deleteMany();
+  await prisma.flat.deleteMany();
+  await prisma.landValuation.deleteMany();
+  await prisma.developerAgreement.deleteMany();
   await prisma.customerContract.deleteMany();
   await prisma.customer.deleteMany();
+  await prisma.lead.deleteMany();
+  await prisma.salesAgent.deleteMany();
   await prisma.customerProfile.deleteMany();
   await prisma.share.deleteMany();
   await prisma.projectSerialCounter.deleteMany();

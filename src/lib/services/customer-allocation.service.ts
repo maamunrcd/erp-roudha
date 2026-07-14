@@ -5,6 +5,7 @@ import { addShareObligationsToLedger, bootstrapLedger, parsePricingPhases } from
 import { findOrCreateProfile, normalizePhone } from "@/lib/services/customer-summary.service";
 import { aggregateContractTotals, applyContractTermOverrides, resolveSharePricing } from "@/lib/services/pricing.service";
 import { generateTemporaryPassword, hashPortalPassword } from "@/lib/services/portal.service";
+import { createEnrollmentCommission } from "@/lib/services/commission.service";
 import {
   CustomerStatus,
   PaymentPlan,
@@ -32,6 +33,8 @@ export interface EnrollCustomerInput {
   discountReason?: string;
   approvedByUserId: string;
   contractStartDate?: Date;
+  salesAgentId?: string | null;
+  leadId?: string | null;
 }
 
 const MERGEABLE_STATUSES: CustomerStatus[] = [
@@ -175,6 +178,7 @@ export async function enrollCustomer(input: EnrollCustomerInput) {
           nid: input.nid ?? existingInProject.nid,
           address: input.address ?? existingInProject.address,
           profileId: profileForPortal.id,
+          ...(input.salesAgentId ? { salesAgentId: input.salesAgentId } : {}),
         },
       });
       contract = existingInProject.contract;
@@ -242,6 +246,7 @@ export async function enrollCustomer(input: EnrollCustomerInput) {
           paymentPlan: input.paymentPlan ?? PaymentPlan.INSTALLMENT,
           contractStartDate: contractStart,
           status: CustomerStatus.ACTIVE,
+          salesAgentId: input.salesAgentId || null,
         },
       });
 
@@ -282,8 +287,21 @@ export async function enrollCustomer(input: EnrollCustomerInput) {
         shareCount: shares.length,
         merged,
         projectPrefix: project.prefix,
+        salesAgentId: input.salesAgentId ?? null,
       },
     });
+
+    if (input.salesAgentId && !merged) {
+      await createEnrollmentCommission(tx, {
+        agentId: input.salesAgentId,
+        customerId: customer.id,
+        projectId: project.id,
+        leadId: input.leadId,
+        baseAmount: totals.downpayment,
+        basis: "DOWNPAYMENT",
+        userId: input.approvedByUserId,
+      });
+    }
 
     const updatedCustomer = await tx.customer.findUniqueOrThrow({ where: { id: customer.id } });
 

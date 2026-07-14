@@ -3,14 +3,38 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { LayoutDashboard, Users, ArrowLeftRight, FolderKanban, Receipt } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  ArrowLeftRight,
+  FolderKanban,
+  Receipt,
+  UserPlus,
+  Bell,
+  FileCheck2,
+  Handshake,
+  Wallet,
+  TrendingUp,
+  Building2,
+  Home,
+  KeyRound,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 
 const links = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/leads", label: "Leads", icon: UserPlus },
   { href: "/admin/customers", label: "Customers", icon: Users },
-  { href: "/admin/transfers", label: "Transfers", icon: ArrowLeftRight },
   { href: "/admin/projects", label: "Projects", icon: FolderKanban },
+  { href: "/admin/transfers", label: "Transfers", icon: ArrowLeftRight },
+  { href: "/admin/registration", label: "Registration", icon: FileCheck2 },
+  { href: "/admin/land-value", label: "Land Value", icon: TrendingUp },
+  { href: "/admin/developers", label: "Developers", icon: Building2 },
+  { href: "/admin/flats", label: "Flats", icon: Home },
+  { href: "/admin/handovers", label: "Handovers", icon: KeyRound },
+  { href: "/admin/sales-team", label: "Sales Team", icon: Handshake },
+  { href: "/admin/commissions", label: "Commissions", icon: Wallet },
+  { href: "/admin/reminders", label: "Reminders", icon: Bell },
   { href: "/admin/expenses", label: "Expenses", icon: Receipt },
 ] as const;
 
